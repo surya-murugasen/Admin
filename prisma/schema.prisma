@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  password    String
+  firstName   String?
+  lastName    String?
+  status      String       @default("active") // active, inactive, suspended
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  roles       UserRole[]
+  auditLogs   AuditLog[]
+  settings    SystemSetting[]
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  module      String
+  description String?
+  createdAt   DateTime         @default(now())
+
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  userId    String
+  roleId    String
+  createdAt DateTime   @default(now())
+
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  createdAt   DateTime   @default(now())
+
+  user        AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  value       Json
+  type        String     @default("string") // string, boolean, number, json
+  description String?
+  updatedById String?
+  updatedAt   DateTime   @updatedAt
+
+  updatedBy   AdminUser? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+
+model Project {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  category          String?
+  status            String   @default("PLANNED") // PLANNED, DEVELOPMENT, ACTIVE, COMPLETED, ARCHIVED
+  visibility        String   @default("PRIVATE") // PUBLIC, PRIVATE
+  frontend          String?
+  backend           String?
+  database          String?
+  repositoryUrl     String?
+  liveUrl           String?
+  documentationUrl  String?
+  projectType       String?
+  integrationType   String?
+  healthCheckUrl    String?
+  
+  // Portfolio Integration
+  showInPortfolio   Boolean  @default(false)
+  portfolioOrder    Int      @default(0)
+  
+  // Phase 3 Runtime Integration
+  integrationEnabled Boolean @default(false)
+  integrationStatus  String  @default("NOT_CONNECTED") // NOT_CONNECTED, CONFIGURED, CONNECTING, CONNECTED, OFFLINE, ERROR, DISABLED
+  baseUrl            String?
+  healthEndpoint     String? @default("/api/health")
+  statsEndpoint      String? @default("/api/stats")
+  lastHealthCheck    DateTime?
+  integrationSecret  String? // Stored encrypted or plain for now (documented). Must NOT be exposed to client.
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PortfolioProfile {
+  id           String   @id @default("singleton")
+  name         String   @default("Your Name")
+  title        String   @default("Software Developer")
+  bio          String?
+  about        String?
+  resumeUrl    String?
+  email        String?
+  phone        String?
+  location     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Experience {
+  id           String   @id @default(cuid())
+  company      String
+  role         String
+  startDate    String
+  endDate      String?
+  description  String?
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+}
+
+model Education {
+  id           String   @id @default(cuid())
+  institution  String
+  degree       String
+  startDate    String
+  endDate      String?
+  description  String?
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+}
+
+model Certification {
+  id           String   @id @default(cuid())
+  name         String
+  issuer       String
+  date         String?
+  url          String?
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+}
+
+model Skill {
+  id           String   @id @default(cuid())
+  name         String
+  category     String   @default("Technical") // Technical, Soft
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+}
+
+model SocialLink {
+  id           String   @id @default(cuid())
+  platform     String
+  url          String
+  icon         String?  // FontAwesome class
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+}
+
+model AppConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String   @default("STRING") // STRING, BOOLEAN, NUMBER, JSON
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
